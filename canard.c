@@ -27,6 +27,12 @@
 #include "canard_internals.h"
 #include <string.h>
 
+#define UINT64_VALUE(hbyte, lbyte) ( (((uint64_t)hbyte) <<32)|(lbyte))
+
+// get high or low bytes from 2 byte integer
+#define LOWBYTE(i) ((uint32_t)(i))
+#define HIGHBYTE(i) ((uint32_t)(((uint64_t)(i))>>32))
+
 
 #undef MIN
 #undef MAX
@@ -464,13 +470,14 @@ int16_t canardHandleRxFrame(CanardInstance* ins, const CanardCANFrame* frame, ui
     CANARD_ASSERT(rx_state != NULL);    // All paths that lead to NULL should be terminated with return above
 
     // Resolving the state flags:
-    const bool not_initialized = rx_state->timestamp_usec == 0;
-    const bool tid_timed_out = (timestamp_usec - rx_state->timestamp_usec) > TRANSFER_TIMEOUT_USEC;
+    uint64_t rx_timestamp = UINT64_VALUE(rx_state->timestamp_usec_high16,rx_state->timestamp_usec);
+    const bool not_initialized = rx_timestamp == 0;
+    const bool tid_timed_out = (timestamp_usec - rx_timestamp) > TRANSFER_TIMEOUT_USEC;
     const bool same_iface = frame->iface_id == rx_state->iface_id;
     const bool first_frame = IS_START_OF_TRANSFER(tail_byte);
     const bool not_previous_tid =
         computeTransferIDForwardDistance((uint8_t) rx_state->transfer_id, TRANSFER_ID_FROM_TAIL_BYTE(tail_byte)) > 1;
-    const bool iface_switch_allowed = (timestamp_usec - rx_state->timestamp_usec) > IFACE_SWITCH_DELAY_USEC;
+    const bool iface_switch_allowed = (timestamp_usec - rx_timestamp) > IFACE_SWITCH_DELAY_USEC;
     const bool non_wrapped_tid = computeTransferIDForwardDistance(TRANSFER_ID_FROM_TAIL_BYTE(tail_byte), (uint8_t) rx_state->transfer_id) < (1 << (TRANSFER_ID_BIT_LEN-1));
     const bool incomplete_frame = rx_state->buffer_blocks != CANARD_BUFFER_IDX_NONE;
 
@@ -501,7 +508,8 @@ int16_t canardHandleRxFrame(CanardInstance* ins, const CanardCANFrame* frame, ui
 
     if (IS_START_OF_TRANSFER(tail_byte) && IS_END_OF_TRANSFER(tail_byte)) // single frame transfer
     {
-        rx_state->timestamp_usec = timestamp_usec;
+        rx_state->timestamp_usec = LOWBYTE(timestamp_usec);
+        rx_state->timestamp_usec_high16 = (uint16_t) HIGHBYTE(timestamp_usec);
         CanardRxTransfer rx_transfer = {
             .timestamp_usec = timestamp_usec,
             .payload_head = frame->data,
@@ -543,7 +551,8 @@ int16_t canardHandleRxFrame(CanardInstance* ins, const CanardCANFrame* frame, ui
         }
 
         // take off the crc and store the payload
-        rx_state->timestamp_usec = timestamp_usec;
+        rx_state->timestamp_usec = LOWBYTE(timestamp_usec);
+        rx_state->timestamp_usec_high16 = (uint16_t) HIGHBYTE(timestamp_usec);
         rx_state->payload_len = 0;
         const int16_t ret = bufferBlockPushBytes(&ins->allocator, rx_state, frame->data + 2,
                                                  (uint8_t) (frame->data_len - 3));
@@ -1936,3 +1945,15 @@ CANARD_INTERNAL void freeBlock(CanardPoolAllocator* allocator, void* p)
     canard_allocate_sem_give(allocator);
 #endif
 }
+
+// #if CANARD_ALLOCATE_SEM
+// void canard_allocate_sem_take(CanardPoolAllocator *allocator) 
+// {
+//     k_sem_take(allocator->semaphore,K_FOREVER);
+// }
+// void canard_allocate_sem_give(CanardPoolAllocator *allocator) {
+//     k_sem_give(allocator->semaphore);
+// }
+
+// #endif
+

@@ -60,47 +60,55 @@ if (${CANARD_ENABLE_COVERAGE})
     set(CANARD_LINK_FLAGS "${CANARD_LINK_FLAGS} -fprofile-arcs -ftest-coverage")
 endif()
 
-add_library(canard_tgt canard.c canard.h)
-target_compile_options(canard_tgt PUBLIC -Wall -g)
-target_include_directories(canard_tgt
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  )
+zephyr_include_directories(${CMAKE_SOURCE_DIR}/src)
 
-add_library(canard_private_tgt canard_internals.h canard.c)
-target_compile_options(canard_private_tgt PUBLIC
-  -Wall
-  -g)
-target_link_libraries(canard_private_tgt PUBLIC canard_tgt)
+target_sources(app PRIVATE
+        canard.c
+)
 
-include(CTest)
-if(${BUILD_TESTING})
-  add_definitions(-DCANARD_INTERNAL=)
+add_subdirectory(drivers/stm32_zephyr)
 
-  include(FetchContent)
-  FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        v1.13.0
-  )
-  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+# add_library(canard_tgt canard.c canard.h)
+# target_compile_options(canard_tgt PUBLIC -Wall -g)
+# target_include_directories(canard_tgt
+#   PUBLIC
+#     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+#   )
 
-  set(BUILD_GTEST ON CACHE BOOL "" FORCE)
-  # disable GMOCK
-  set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+# add_library(canard_private_tgt canard_internals.h canard.c)
+# target_compile_options(canard_private_tgt PUBLIC
+#   -Wall
+#   -g)
+# target_link_libraries(canard_private_tgt PUBLIC canard_tgt)
 
-  FetchContent_MakeAvailable(googletest)
+# include(CTest)
+# if(${BUILD_TESTING})
+#   add_definitions(-DCANARD_INTERNAL=)
 
-  add_subdirectory(tests)
-  add_subdirectory(canard/tests)
-  if (CANARD_ENABLE_COVERAGE)
-    add_custom_target(coverage
-                      COMMAND lcov --directory . --capture --output-file coverage.info
-                      COMMAND lcov --remove coverage.info '/usr/*' '*gtest*' '*tests/*' '*dsdlc_generated/*' --output-file coverage.info
-                      COMMAND lcov --list coverage.info
-                      COMMAND genhtml coverage.info --output-directory coverage
-                      COMMENT echo "Coverage report generated at ${CMAKE_BINARY_DIR}/coverage/index.html"
-                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-    add_custom_command(TARGET coverage POST_BUILD COMMAND ;)
-  endif()
-endif()
+#   include(FetchContent)
+#   FetchContent_Declare(
+#     googletest
+#     GIT_REPOSITORY https://github.com/google/googletest.git
+#     GIT_TAG        v1.13.0
+#   )
+#   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+#   set(BUILD_GTEST ON CACHE BOOL "" FORCE)
+#   # disable GMOCK
+#   set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+
+#   FetchContent_MakeAvailable(googletest)
+
+#   add_subdirectory(tests)
+#   add_subdirectory(canard/tests)
+#   if (CANARD_ENABLE_COVERAGE)
+#     add_custom_target(coverage
+#                       COMMAND lcov --directory . --capture --output-file coverage.info
+#                       COMMAND lcov --remove coverage.info '/usr/*' '*gtest*' '*tests/*' '*dsdlc_generated/*' --output-file coverage.info
+#                       COMMAND lcov --list coverage.info
+#                       COMMAND genhtml coverage.info --output-directory coverage
+#                       COMMENT echo "Coverage report generated at ${CMAKE_BINARY_DIR}/coverage/index.html"
+#                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+#     add_custom_command(TARGET coverage POST_BUILD COMMAND ;)
+#   endif()
+# endif()

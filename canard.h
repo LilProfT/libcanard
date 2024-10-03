@@ -354,8 +354,8 @@ struct CanardRxState
     canard_buffer_idx_t next;
     canard_buffer_idx_t buffer_blocks;
 
-    uint64_t timestamp_usec;
-
+    uint32_t timestamp_usec;
+    uint16_t timestamp_usec_high16;
     const uint32_t dtid_tt_snid_dnid;
 
     // We're using plain 'unsigned' here, because C99 doesn't permit explicit field type specification
